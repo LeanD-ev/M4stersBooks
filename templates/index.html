@@ -85,11 +85,8 @@
             {% if catalog_error %}
                 <p class="catalog-message error" role="alert">{{ catalog_error }}</p>
             {% endif %}
-            {% if catalog_warning %}
-                <p class="catalog-message" role="status">{{ catalog_warning }}</p>
-            {% endif %}
             {% if catalog_status == 'syncing' %}
-                <p class="catalog-message loading" role="status"><span class="loading-dot"></span> Atualizando a biblioteca e identificando os metadados dos livros...</p>
+                <p class="catalog-message loading" role="status"><span class="loading-dot"></span> Atualizando a biblioteca...</p>
             {% endif %}
 
             {% if books %}

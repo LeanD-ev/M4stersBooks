@@ -34,7 +34,6 @@ def index():
     all_books = catalog.get_books_background()
     catalog_status = catalog.sync_state
     catalog_error = catalog.last_error if catalog_status == "error" else None
-    catalog_warning = catalog.warning
     if catalog_error:
         app.logger.error("Não foi possível carregar o catálogo do Drive: %s", catalog_error)
 
@@ -70,7 +69,6 @@ def index():
         search=search,
         selected_genre=selected_genre,
         catalog_error=catalog_error,
-        catalog_warning=catalog_warning,
         catalog_status=catalog_status,
     )
 

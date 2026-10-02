@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import re
@@ -21,8 +20,6 @@ CACHE_SECONDS = 300
 METADATA_CACHE_SECONDS = 30 * 24 * 60 * 60
 NEGATIVE_CACHE_SECONDS = 6 * 60 * 60
 METADATA_REQUEST_INTERVAL = 1.0
-RESEARCH_METADATA_PATH = Path(__file__).resolve().parent / "data" / "catalogo_metadados.csv"
-RESEARCH_COVERS_PATH = Path(__file__).resolve().parent / "static" / "capas"
 TITLE_STOP_WORDS = {
     "a", "as", "ao", "aos", "com", "da", "das", "de", "do", "dos",
     "e", "em", "na", "nas", "no", "nos", "o", "os", "para", "por",
@@ -36,52 +33,6 @@ EDITION_WORDS = {
 
 class CatalogError(Exception):
     """An error that prevents the Drive catalog from being read."""
-
-
-def _load_research_metadata() -> dict[str, dict[str, str]]:
-    metadata: dict[str, dict[str, str]] = {}
-    try:
-        with RESEARCH_METADATA_PATH.open(
-            encoding="utf-8-sig", newline=""
-        ) as metadata_file:
-            reader = csv.DictReader(metadata_file)
-            if not reader.fieldnames or "slug" not in reader.fieldnames:
-                raise CatalogError(
-                    "O catálogo pesquisado não contém a coluna obrigatória 'slug'."
-                )
-            for row in reader:
-                slug = (row.get("slug") or "").strip()
-                if not slug:
-                    raise CatalogError(
-                        "O catálogo pesquisado contém um registro sem slug."
-                    )
-                if slug in metadata:
-                    raise CatalogError(
-                        f"O catálogo pesquisado contém o slug duplicado '{slug}'."
-                    )
-                metadata[slug] = {
-                    key: (value or "").strip() for key, value in row.items() if key
-                }
-    except OSError as error:
-        raise CatalogError(
-            f"Não foi possível carregar os metadados locais em "
-            f"{RESEARCH_METADATA_PATH}."
-        ) from error
-
-    for slug, record in metadata.items():
-        cover_path = record.get("arquivo_capa", "").replace("\\", "/")
-        if not cover_path:
-            continue
-        cover_name = PurePosixPath(cover_path).name
-        if cover_path != f"capas/{cover_name}" or not cover_name:
-            raise CatalogError(
-                f"O caminho da capa associado ao livro '{slug}' é inválido."
-            )
-        if not (RESEARCH_COVERS_PATH / cover_name).is_file():
-            raise CatalogError(
-                f"A capa local '{cover_name}' do livro '{slug}' não foi encontrada."
-            )
-    return metadata
 
 
 def _normalize_title(value: str) -> str:
@@ -156,7 +107,7 @@ def _metadata_cache_key(filename: str) -> str:
     normalized = _normalize_title(title)
     if author:
         normalized = f"{normalized}|{_normalize_title(author)}"
-    return f"v3:{normalized}"
+    return f"v4:{normalized}"
 
 
 def _title_candidates(filename: str) -> list[str]:
@@ -245,7 +196,7 @@ class DriveCatalog:
         self.metadata_cache_path = metadata_cache_path or (
             Path(__file__).resolve().parent
             / "instance"
-            / "openlibrary_metadata.json"
+            / "book_metadata.json"
         )
         self._lock = threading.Lock()
         self._sync_lock = threading.Lock()
@@ -259,7 +210,6 @@ class DriveCatalog:
         self._sync_thread: threading.Thread | None = None
         self._books: list[dict[str, Any]] = []
         self._books_by_slug: dict[str, dict[str, Any]] = {}
-        self._research_metadata = _load_research_metadata()
         self._metadata_cache = self._load_metadata_cache()
         self.warning: str | None = None
 
@@ -381,13 +331,6 @@ class DriveCatalog:
 
         unmatched = 0
         for entry, book in zip(entries, books):
-            if self._apply_research_metadata(book):
-                with self._lock:
-                    current = self._books_by_slug.get(book["slug"])
-                    if current is not None:
-                        current.update(book)
-                continue
-
             cache_key = _metadata_cache_key(entry.get("name", ""))
             cached = self._cached_metadata(cache_key)
             if cached is None:
@@ -408,83 +351,12 @@ class DriveCatalog:
                     current.update(book)
 
         with self._lock:
-            researched = sum(
-                book.get("research_status") != "Sem correspondência segura"
-                for book in books
-                if book.get("research_status")
-            )
-            local_covers = sum(bool(book.get("research_cover")) for book in books)
             self.warning = (
-                f"Pesquisa local aplicada a {researched} de {len(books)} livros, "
-                f"com {local_covers} capas locais. Os dados podem corresponder "
-                "a outra edição; confira ISBN e fontes antes da publicação."
+                f"{unmatched} livro(s) não têm correspondência confiável "
+                "nas fontes bibliográficas."
+                if unmatched
+                else None
             )
-            if unmatched:
-                self.warning += (
-                    f" {unmatched} livro(s) sem registro local ainda dependem "
-                    "das fontes bibliográficas automáticas."
-                )
-
-    def _apply_research_metadata(self, book: dict[str, Any]) -> bool:
-        record = self._research_metadata.get(book["slug"])
-        if record is None:
-            return False
-
-        research_title = record.get("titulo_confirmado")
-        if research_title:
-            book["research_title"] = research_title
-            book["research_title_differs"] = (
-                _normalize_title(book["title"]) != _normalize_title(research_title)
-            )
-        if record.get("autor_confirmado"):
-            book["author"] = record["autor_confirmado"]
-        genre = record.get("genero_confirmado") or record.get("genero_sugerido")
-        if genre:
-            book["genre"] = genre
-            book["genre_is_suggested"] = not bool(record.get("genero_confirmado"))
-        if record.get("ano"):
-            book["year"] = record["ano"]
-        if record.get("editora"):
-            book["publisher"] = record["editora"]
-        if record.get("idioma"):
-            book["language"] = record["idioma"]
-        if record.get("isbn"):
-            book["isbn"] = record["isbn"]
-        if record.get("descricao"):
-            book["description"] = record["descricao"]
-        if record.get("paginas"):
-            book["pages"] = record["paginas"]
-        if record.get("tradutor"):
-            book["translator"] = record["tradutor"]
-        if record.get("titulo_original"):
-            book["original_title"] = record["titulo_original"]
-        if record.get("encadernacao"):
-            book["binding"] = record["encadernacao"]
-
-        cover_path = record.get("arquivo_capa", "").replace("\\", "/")
-        if cover_path:
-            cover_name = PurePosixPath(cover_path).name
-            book["cover"] = f"/static/capas/{urllib.parse.quote(cover_name)}"
-            book["research_cover"] = True
-
-        sources = [
-            source.strip()
-            for source in record.get("fonte", "").split(";")
-            if source.strip()
-        ]
-        book["metadata_source"] = next(
-            (
-                source
-                for source in sources
-                if urllib.parse.urlsplit(source).scheme in ("http", "https")
-            ),
-            None,
-        )
-        research_status = record.get("status_pesquisa", "")
-        if research_status:
-            book["research_status"] = research_status
-            book["metadata_match"] = research_status != "Sem correspondência segura"
-        return True
 
     def _list_epub_files(self) -> list[dict[str, Any]]:
         files: list[dict[str, Any]] = []
@@ -621,12 +493,12 @@ class DriveCatalog:
     def _lookup_metadata(self, filename: str) -> dict[str, Any] | None:
         query, expected_author = _filename_parts(filename)
         isbn = _filename_isbn(filename)
-        open_library_match = self._search_open_library(
+        google_books_match = self._search_google_books(
             query, expected_author, isbn
         )
-        if open_library_match:
-            return open_library_match
-        return self._search_google_books(query, expected_author, isbn)
+        if google_books_match:
+            return google_books_match
+        return self._search_open_library(query, expected_author, isbn)
 
     def _wait_for_metadata_slot(self) -> None:
         elapsed = time.monotonic() - self._last_metadata_request
@@ -728,6 +600,9 @@ class DriveCatalog:
         if expected_author and not isbn:
             search_query += f' inauthor:"{expected_author}"'
         params = {"q": search_query, "maxResults": "10", "printType": "books"}
+        api_key = os.environ.get("GOOGLE_BOOKS_API_KEY")
+        if api_key:
+            params["key"] = api_key
         url = f"{GOOGLE_BOOKS_URL}?{urllib.parse.urlencode(params)}"
         self._wait_for_metadata_slot()
         request = urllib.request.Request(
@@ -808,6 +683,7 @@ class DriveCatalog:
         year_match = re.search(r"\d{4}", published_date)
         description = info.get("description") or ""
         source = info.get("infoLink") or info.get("canonicalVolumeLink")
+        page_count = info.get("pageCount")
         return self._metadata_from_search(
             match,
             title=info.get("title") or query,
@@ -820,6 +696,7 @@ class DriveCatalog:
             source=source or "Google Books",
             description=description,
             year=year_match.group(0) if year_match else None,
+            pages=str(page_count) if page_count else None,
         )
 
     @staticmethod
@@ -836,6 +713,7 @@ class DriveCatalog:
         source: str,
         description: str = "",
         year: str | None = None,
+        pages: str | None = None,
     ) -> dict[str, Any]:
         if not year:
             year = str(match.get("first_publish_year") or "")
@@ -843,7 +721,7 @@ class DriveCatalog:
             description = "Descrição não encontrada nas fontes consultadas."
         description = re.sub(r"<[^>]+>", " ", description)
         description = re.sub(r"\s+", " ", description).strip()
-        return {
+        metadata = {
             "title": title,
             "author": ", ".join(authors[:3]) or "Autor não encontrado",
             "description": description,
@@ -856,3 +734,6 @@ class DriveCatalog:
             "metadata_source": source,
             "metadata_match": True,
         }
+        if pages:
+            metadata["pages"] = pages
+        return metadata

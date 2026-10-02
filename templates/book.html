@@ -45,27 +45,9 @@
                 <p class="detail-author">por <strong>{{ book.author }}</strong></p>
                 <p class="detail-description">{{ book.description }}</p>
 
-                {% if book.metadata_match %}
-                    <p class="match-note"><span aria-hidden="true">✓</span>
-                        {% if book.research_status %}
-                            Pesquisa bibliográfica: {{ book.research_status }}. A edição e a capa podem não corresponder exatamente ao arquivo EPUB.
-                        {% else %}
-                            Dados encontrados em uma fonte bibliográfica.
-                        {% endif %}
-                        {% if book.metadata_source %}
-                            <a href="{{ book.metadata_source }}" target="_blank" rel="noopener noreferrer">Ver fonte <span aria-hidden="true">↗</span></a>
-                        {% endif %}
-                    </p>
-                {% else %}
-                    <p class="match-note muted-note"><span aria-hidden="true">i</span> Ainda não encontramos metadados confiáveis para este título.</p>
-                {% endif %}
-
                 <div class="detail-rule"></div>
                 <dl class="metadata-list">
-                    {% if book.research_title_differs %}
-                        <div><dt>Título na ficha</dt><dd>{{ book.research_title }}</dd></div>
-                    {% endif %}
-                    <div><dt>{{ 'Gênero sugerido' if book.genre_is_suggested else 'Gênero' }}</dt><dd>{{ book.genre }}</dd></div>
+                    <div><dt>Gênero</dt><dd>{{ book.genre }}</dd></div>
                     <div><dt>Publicado</dt><dd>{{ book.year }}</dd></div>
                     <div><dt>Editora</dt><dd>{{ book.publisher }}</dd></div>
                     <div><dt>Idioma</dt><dd>{{ book.language }}</dd></div>

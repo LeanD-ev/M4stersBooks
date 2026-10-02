@@ -61,7 +61,10 @@ class DriveCatalogTests(unittest.TestCase):
 
             @property
             def warning(self):
-                return None
+                return (
+                    "Pesquisa local aplicada a 297 de 299 livros, "
+                    "com 258 capas locais."
+                )
 
         with patch("app.catalog", CatalogStub()):
             response = app.test_client().get("/")
@@ -78,6 +81,8 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertNotIn(b"METADADOS PESQUISADOS", response.data)
         self.assertNotIn(b"catalog-count", response.data)
         self.assertNotIn(b"livros encontrados", response.data)
+        self.assertNotIn(b"Pesquisa local aplicada", response.data)
+        self.assertNotIn(b"identificando os metadados", response.data)
         self.assertNotIn(b">leazera2@gmail.com<", response.data)
         self.assertNotIn(
             b">https://www.linkedin.com/in/leandro-batista01/<",
@@ -158,39 +163,38 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertEqual(2, lookup.call_count)
         self.assertTrue(all(book["download_url"].startswith("https://drive.google.com/uc?") for book in books))
 
-    def test_sync_applies_local_research_data_and_cover_without_online_lookup(self):
+    def test_sync_uses_online_metadata_without_local_catalog_files(self):
         catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
         entry = {
-            "id": "file-mn6ir6qw",
-            "name": "A Beira da Loucura.epub",
+            "id": "file-12345678",
+            "name": "Livro sem registro local - Autora Exemplo.epub",
         }
         with (
             patch.object(catalog, "_list_epub_files", return_value=[entry]),
+            patch.object(catalog, "_cached_metadata", return_value=None),
+            patch.object(catalog, "_store_metadata"),
             patch.object(
                 catalog,
                 "_lookup_metadata",
-                side_effect=AssertionError("local research data should be used"),
-            ),
+                return_value={
+                    "author": "Autora Exemplo",
+                    "genre": "Romance",
+                    "year": "2024",
+                    "cover": "https://books.google.com/cover.jpg",
+                    "metadata_source": "https://books.google.com/books?id=example",
+                    "metadata_match": True,
+                },
+            ) as lookup,
         ):
             books = catalog.get_books()
 
         self.assertEqual(1, len(books))
-        self.assertEqual("B. A. Paris", books[0]["author"])
-        self.assertEqual("SUSPENSE E MISTERIO", books[0]["genre"])
-        self.assertEqual("2018", books[0]["year"])
-        self.assertEqual("Record", books[0]["publisher"])
-        self.assertEqual("9788501113832", books[0]["isbn"])
-        self.assertEqual("350", books[0]["pages"])
-        self.assertTrue(books[0]["cover"].startswith("/static/capas/"))
-        self.assertTrue(
-            Path(__file__).resolve().parent.parent.joinpath(
-                "static",
-                "capas",
-                books[0]["cover"].rsplit("/", 1)[-1],
-            ).is_file()
-        )
-        self.assertEqual("ISBN corroborado", books[0]["research_status"])
+        self.assertEqual("Autora Exemplo", books[0]["author"])
+        self.assertEqual("Romance", books[0]["genre"])
+        self.assertEqual("2024", books[0]["year"])
+        self.assertEqual("https://books.google.com/cover.jpg", books[0]["cover"])
         self.assertTrue(books[0]["metadata_match"])
+        lookup.assert_called_once_with(entry["name"])
 
     def test_drive_listing_filters_non_epub_files(self):
         response = json.dumps(
@@ -207,7 +211,7 @@ class DriveCatalogTests(unittest.TestCase):
 
         self.assertEqual(["epub-id"], [entry["id"] for entry in entries])
 
-    def test_cached_metadata_avoids_second_open_library_lookup(self):
+    def test_cached_metadata_avoids_second_google_books_lookup(self):
         with tempfile.TemporaryDirectory() as directory:
             cache_path = Path(directory) / "metadata.json"
             first = DriveCatalog(
@@ -241,7 +245,7 @@ class DriveCatalogTests(unittest.TestCase):
 
         self.assertEqual("Autora Cache", books[0]["author"])
 
-    def test_metadata_lookup_matches_a_title_and_returns_open_library_cover(self):
+    def test_open_library_fallback_maps_metadata_and_cover(self):
         response = {
             "docs": [
                 {
@@ -263,7 +267,9 @@ class DriveCatalogTests(unittest.TestCase):
             "urllib.request.urlopen",
             return_value=BytesIO(json.dumps(response).encode()),
         ) as open_url:
-            metadata = catalog._lookup_metadata("Livro de Exemplo.epub")
+            metadata = catalog._search_open_library(
+                "Livro de Exemplo", None
+            )
 
         request = open_url.call_args.args[0]
         self.assertIn("openlibrary.org/search.json", request.full_url)
@@ -285,6 +291,7 @@ class DriveCatalogTests(unittest.TestCase):
                         "categories": ["Fiction", "Mystery"],
                         "language": "pt",
                         "description": "<p>Uma história de mistério.</p>",
+                        "pageCount": 321,
                         "imageLinks": {
                             "thumbnail": "http://books.example/cover.jpg&edge=curl"
                         },
@@ -311,8 +318,42 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertEqual("2014", metadata["year"])
         self.assertEqual("Uma história de mistério.", metadata["description"])
         self.assertEqual("9781234567890", metadata["isbn"])
+        self.assertEqual("321", metadata["pages"])
         self.assertEqual("https://books.example/cover.jpg", metadata["cover"])
         self.assertEqual("https://books.google.com/books?id=example", metadata["metadata_source"])
+
+    def test_lookup_uses_google_books_before_open_library(self):
+        catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
+        google_books = {"title": "A Espiã", "metadata_match": True}
+        with (
+            patch.object(
+                catalog, "_search_google_books", return_value=google_books
+            ) as google_search,
+            patch.object(catalog, "_search_open_library") as open_library_search,
+        ):
+            result = catalog._lookup_metadata("A Espiã - Tess Gerritsen.epub")
+
+        self.assertEqual(google_books, result)
+        google_search.assert_called_once_with(
+            "A Espiã", "Tess Gerritsen", None
+        )
+        open_library_search.assert_not_called()
+
+    def test_lookup_uses_open_library_when_google_books_has_no_match(self):
+        catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
+        open_library = {"title": "A Espiã", "metadata_match": True}
+        with (
+            patch.object(catalog, "_search_google_books", return_value=None),
+            patch.object(
+                catalog, "_search_open_library", return_value=open_library
+            ) as open_library_search,
+        ):
+            result = catalog._lookup_metadata("A Espiã - Tess Gerritsen.epub")
+
+        self.assertEqual(open_library, result)
+        open_library_search.assert_called_once_with(
+            "A Espiã", "Tess Gerritsen", None
+        )
 
     def test_google_books_rate_limit_cools_down_requests(self):
         catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
@@ -365,7 +406,7 @@ class DriveCatalogTests(unittest.TestCase):
 
     def test_metadata_cache_uses_new_filename_and_author_key(self):
         self.assertEqual(
-            "v3:a espia|tess gerritsen",
+            "v4:a espia|tess gerritsen",
             _metadata_cache_key("A Espiã - Tess Gerritsen.epub"),
         )
 
@@ -413,7 +454,7 @@ class DriveCatalogTests(unittest.TestCase):
             response.headers["Location"],
         )
 
-    def test_book_detail_renders_researched_metadata_and_local_cover(self):
+    def test_book_detail_renders_online_metadata_and_cover(self):
         class CatalogStub:
             def get_book_background(self, slug):
                 if slug != "a-beira-da-loucura-mn6ir6qw":
@@ -421,7 +462,6 @@ class DriveCatalogTests(unittest.TestCase):
                 return {
                     "slug": slug,
                     "title": "A Beira da Loucura",
-                    "research_title": "A beira da loucura",
                     "author": "B. A. Paris",
                     "genre": "SUSPENSE E MISTERIO",
                     "year": "2018",
@@ -432,11 +472,10 @@ class DriveCatalogTests(unittest.TestCase):
                     "translator": "Claudia Costa Guimaraes",
                     "original_title": "The Breakdown",
                     "binding": "Brochura",
-                    "cover": "/static/capas/9788501113832.jpg",
+                    "cover": "https://books.google.com/cover.jpg",
                     "description": "Cass enfrenta culpa e desconfiança.",
-                    "research_status": "ISBN corroborado",
                     "metadata_match": True,
-                    "metadata_source": "https://example.com/book",
+                    "metadata_source": "https://books.google.com/books?id=example",
                 }
 
             @property
@@ -453,11 +492,16 @@ class DriveCatalogTests(unittest.TestCase):
             )
 
         self.assertEqual(200, response.status_code)
-        self.assertIn(b"ISBN corroborado", response.data)
         self.assertIn(b"9788501113832", response.data)
         self.assertIn(b"350", response.data)
-        self.assertIn(b"/static/capas/9788501113832.jpg", response.data)
-        self.assertIn(b"Ver fonte", response.data)
+        self.assertIn(b"https://books.google.com/cover.jpg", response.data)
+        self.assertIn(b"B. A. Paris", response.data)
+        self.assertIn(b"SUSPENSE E MISTERIO", response.data)
+        self.assertNotIn(b"Pesquisa bibliogr\xc3\xa1fica", response.data)
+        self.assertNotIn(b"ISBN corroborado", response.data)
+        self.assertNotIn(b"Dados encontrados em uma fonte bibliogr\xc3\xa1fica", response.data)
+        self.assertNotIn(b"Ainda n\xc3\xa3o encontramos metadados", response.data)
+        self.assertNotIn(b"Ver fonte", response.data)
 
     def test_drive_api_error_includes_google_reason_without_exposing_key(self):
         api_key = "AIzaTestSecret"

@@ -547,19 +547,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     color: #62675f;
     font: 400 1rem/1.8 var(--serif);
 }
-.match-note {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 7px;
-    color: var(--green);
-    font-size: .68rem;
-}
-.match-note > span { color: #66856b; font-weight: 700; }
-.match-note a { margin-left: 5px; color: var(--orange); font-weight: 700; }
-.muted-note { color: var(--muted); }
-.muted-note > span { width: 15px; height: 15px; display: grid; place-items: center; border: 1px solid var(--soft-muted); border-radius: 50%; font-size: .58rem; }
 .detail-rule { height: 1px; margin: 26px 0 6px; background: var(--line); }
 .metadata-list { margin: 0; }
 .metadata-list > div {
