@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f3ec">
+    <title>{{ book.title }} | M4 Books</title>
+    <link rel="preconnect" href="https://covers.openlibrary.org">
+    <link rel="preconnect" href="https://books.google.com">
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('index') }}" aria-label="M4 Books, início">
+            <span class="brand-mark">M4</span>
+            <span class="brand-name">M4 <span>Books</span></span>
+        </a>
+        <nav class="header-nav" aria-label="Navegação principal">
+            <a href="{{ url_for('index') }}">Biblioteca</a>
+            <a class="header-link" href="{{ url_for('index') }}#sobre">Sobre a curadoria <span aria-hidden="true">↗</span></a>
+        </nav>
+    </header>
+
+    <main class="book-page">
+        <a class="back-link" href="{{ url_for('index') }}">← <span>Voltar à biblioteca</span></a>
+        <section class="book-detail">
+            <div class="detail-art-wrap">
+                <div class="detail-art">
+                    {% if book.cover %}
+                        <img src="{{ book.cover }}" alt="Capa de {{ book.title }}">
+                    {% else %}
+                        <div class="cover-fallback detail-fallback">
+                            <span class="fallback-monogram">M4</span>
+                            <span class="fallback-title">{{ book.title }}</span>
+                            <span class="fallback-author">{{ book.author }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+                <span class="detail-art-caption">DA BIBLIOTECA M4 BOOKS</span>
+            </div>
+
+            <article class="detail-content">
+                <p class="eyebrow detail-eyebrow"><span class="eyebrow-dot"></span> {{ book.genre if book.genre != 'Gênero não encontrado' else 'LIVRO PARA DESCOBRIR' }}</p>
+                <h1>{{ book.title }}</h1>
+                <p class="detail-author">por <strong>{{ book.author }}</strong></p>
+                <p class="detail-description">{{ book.description }}</p>
+
+                {% if book.metadata_match %}
+                    <p class="match-note"><span aria-hidden="true">✓</span>
+                        {% if book.research_status %}
+                            Pesquisa bibliográfica: {{ book.research_status }}. A edição e a capa podem não corresponder exatamente ao arquivo EPUB.
+                        {% else %}
+                            Dados encontrados em uma fonte bibliográfica.
+                        {% endif %}
+                        {% if book.metadata_source %}
+                            <a href="{{ book.metadata_source }}" target="_blank" rel="noopener noreferrer">Ver fonte <span aria-hidden="true">↗</span></a>
+                        {% endif %}
+                    </p>
+                {% else %}
+                    <p class="match-note muted-note"><span aria-hidden="true">i</span> Ainda não encontramos metadados confiáveis para este título.</p>
+                {% endif %}
+
+                <div class="detail-rule"></div>
+                <dl class="metadata-list">
+                    {% if book.research_title_differs %}
+                        <div><dt>Título na ficha</dt><dd>{{ book.research_title }}</dd></div>
+                    {% endif %}
+                    <div><dt>{{ 'Gênero sugerido' if book.genre_is_suggested else 'Gênero' }}</dt><dd>{{ book.genre }}</dd></div>
+                    <div><dt>Publicado</dt><dd>{{ book.year }}</dd></div>
+                    <div><dt>Editora</dt><dd>{{ book.publisher }}</dd></div>
+                    <div><dt>Idioma</dt><dd>{{ book.language }}</dd></div>
+                    <div><dt>ISBN</dt><dd>{{ book.isbn or 'Não informado' }}</dd></div>
+                    {% if book.pages %}
+                        <div><dt>Páginas</dt><dd>{{ book.pages }}</dd></div>
+                    {% endif %}
+                    {% if book.binding %}
+                        <div><dt>Encadernação</dt><dd>{{ book.binding }}</dd></div>
+                    {% endif %}
+                    {% if book.translator %}
+                        <div><dt>Tradutor(a)</dt><dd>{{ book.translator }}</dd></div>
+                    {% endif %}
+                    {% if book.original_title %}
+                        <div><dt>Título original</dt><dd>{{ book.original_title }}</dd></div>
+                    {% endif %}
+                </dl>
+
+                <a class="download-link" href="{{ url_for('download_epub', slug=book.slug) }}">
+                    <span class="download-icon" aria-hidden="true">↓</span>
+                    <span>Baixar pelo Google Drive</span>
+                    <span class="download-external" aria-hidden="true">↗</span>
+                </a>
+                <p class="download-note">Você será encaminhado ao arquivo original no Google Drive.</p>
+            </article>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <a class="footer-brand" href="{{ url_for('index') }}">M4 Books</a>
+        <span>Feito para quem sempre lê só mais um capítulo.</span>
+        <span>© M4 Books</span>
+    </footer>
+</body>
+</html>

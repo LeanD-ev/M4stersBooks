@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f3ec">
+    <title>M4 Books | Uma boa história começa aqui</title>
+    <link rel="preconnect" href="https://covers.openlibrary.org">
+    <link rel="preconnect" href="https://books.google.com">
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('index') }}" aria-label="M4 Books, início">
+            <span class="brand-mark">M4</span>
+            <span class="brand-name">M4 <span>Books</span></span>
+        </a>
+        <nav class="header-nav" aria-label="Navegação principal">
+            <a href="#catalogo">Biblioteca</a>
+            <a class="header-link" href="#sobre">Sobre a curadoria <span aria-hidden="true">↗</span></a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="eyebrow-dot"></span> SUA PRÓXIMA LEITURA ESTÁ AQUI</p>
+                <h1>Histórias que<br><em>merecem</em> ser lidas.</h1>
+                <p class="hero-description">Uma biblioteca de descobertas para leitores curiosos. Encontre aquela história que estava procurando — ou deixe que ela encontre você.</p>
+                <form class="search-form" method="get" action="{{ url_for('index') }}">
+                    <label class="search-input-wrap">
+                        <span class="search-icon" aria-hidden="true">⌕</span>
+                        <input type="search" name="q" value="{{ search }}" placeholder="Título, autor ou gênero..." aria-label="Buscar livros">
+                    </label>
+                    <select name="genre" aria-label="Filtrar por gênero">
+                        <option value="">Todos os gêneros</option>
+                        {% for genre in genres %}
+                            <option value="{{ genre }}" {% if genre == selected_genre %}selected{% endif %}>{{ genre }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Buscar <span aria-hidden="true">→</span></button>
+                </form>
+                <p class="hero-note"><span aria-hidden="true">✳</span> Encontre, descubra, leia no seu ritmo.</p>
+            </div>
+
+            {% if featured %}
+                <a class="featured-panel" href="{{ url_for('book_detail', slug=featured.slug) }}" aria-label="Conheça {{ featured.title }}, livro em destaque">
+                    <div class="featured-topline"><span>UM LIVRO PARA DESCOBRIR</span><span class="featured-index">01 / 01</span></div>
+                    <div class="featured-content">
+                        <div class="featured-cover">
+                            {% if featured.cover %}
+                                <img src="{{ featured.cover }}" alt="Capa de {{ featured.title }}">
+                            {% else %}
+                                <div class="cover-fallback featured-fallback"><span>M4</span><small>{{ featured.title }}</small></div>
+                            {% endif %}
+                        </div>
+                        <div class="featured-copy">
+                            <span class="featured-label">EM DESTAQUE</span>
+                            <h2>{{ featured.title }}</h2>
+                            <p>{{ featured.author }}</p>
+                            <span class="featured-cta">Explorar livro <b aria-hidden="true">↗</b></span>
+                        </div>
+                    </div>
+                    <span class="featured-orbit orbit-one"></span>
+                    <span class="featured-orbit orbit-two"></span>
+                </a>
+            {% else %}
+                <div class="featured-panel featured-empty">
+                    <span class="featured-label">BIBLIOTECA ABERTA</span>
+                    <h2>Uma nova história espera por você.</h2>
+                    <p>Estamos preparando os livros da biblioteca.</p>
+                    <span class="decorative-star" aria-hidden="true">✳</span>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="catalog-section" id="catalogo">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow section-eyebrow">ESCOLHIDOS PARA VOCÊ</p>
+                    <h2>A biblioteca<span class="heading-period">.</span></h2>
+                </div>
+                <div class="catalog-count">
+                    <span class="count-number">{{ books|length }}</span>
+                    <span>{{ 'livro encontrado' if books|length == 1 else 'livros encontrados' }}</span>
+                </div>
+            </div>
+
+            {% if catalog_error %}
+                <p class="catalog-message error" role="alert">{{ catalog_error }}</p>
+            {% endif %}
+            {% if catalog_warning %}
+                <p class="catalog-message" role="status">{{ catalog_warning }}</p>
+            {% endif %}
+            {% if catalog_status == 'syncing' %}
+                <p class="catalog-message loading" role="status"><span class="loading-dot"></span> Atualizando a biblioteca e identificando os metadados dos livros...</p>
+            {% endif %}
+
+            {% if books %}
+                <div class="books-grid">
+                    {% for book in books %}
+                        <a class="book-card" href="{{ url_for('book_detail', slug=book.slug) }}">
+                            <div class="book-art">
+                                {% if book.cover %}
+                                    <img src="{{ book.cover }}" alt="Capa de {{ book.title }}" loading="lazy">
+                                {% else %}
+                                    <div class="cover-fallback">
+                                        <span class="fallback-monogram">M4</span>
+                                        <span class="fallback-title">{{ book.title }}</span>
+                                        <span class="fallback-author">{{ book.author }}</span>
+                                    </div>
+                                {% endif %}
+                                {% if book.metadata_match %}
+                                    <span class="metadata-badge" title="Pesquisa bibliográfica: {{ book.research_status }}">METADADOS PESQUISADOS</span>
+                                {% endif %}
+                                <span class="book-arrow" aria-hidden="true">↗</span>
+                            </div>
+                            <div class="book-info">
+                                <span class="book-genre">{{ book.genre if book.genre != 'Gênero não encontrado' else 'PARA DESCOBRIR' }}</span>
+                                <h3>{{ book.title }}</h3>
+                                <p class="book-author">{{ book.author }}</p>
+                                {% if book.year and book.year != 'Ano não encontrado' %}
+                                    <span class="book-year">{{ book.year }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% elif catalog_status == 'syncing' %}
+                <div class="empty-state">
+                    <span class="empty-icon" aria-hidden="true">✳</span>
+                    <h3>Estamos organizando as estantes.</h3>
+                    <p>Os títulos já chegaram. Em instantes, a biblioteca estará pronta para explorar.</p>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <span class="empty-icon" aria-hidden="true">⌕</span>
+                    <h3>Nenhum livro encontrado.</h3>
+                    <p>Tente outra busca ou escolha um gênero diferente.</p>
+                    {% if search or selected_genre %}
+                        <a class="text-link" href="{{ url_for('index') }}">Limpar filtros <span aria-hidden="true">→</span></a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="about-strip" id="sobre">
+            <span class="about-spark" aria-hidden="true">✳</span>
+            <div>
+                <p class="eyebrow">M4 BOOKS</p>
+                <p>Um lugar para encontrar seu próximo livro favorito.</p>
+            </div>
+            <a href="#catalogo">Voltar à biblioteca <span aria-hidden="true">↑</span></a>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <a class="footer-brand" href="{{ url_for('index') }}">M4 Books</a>
+        <span>Feito para quem sempre lê só mais um capítulo.</span>
+        <span>© M4 Books</span>
+    </footer>
+    {% if catalog_status == 'syncing' %}
+        <script>window.setTimeout(function () { window.location.reload(); }, 15000);</script>
+    {% endif %}
+</body>
+</html>
