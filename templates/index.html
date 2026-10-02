@@ -17,7 +17,7 @@
         </a>
         <nav class="header-nav" aria-label="Navegação principal">
             <a href="#catalogo">Biblioteca</a>
-            <a class="header-link" href="#sobre">Sobre a curadoria <span aria-hidden="true">↗</span></a>
+            <a class="header-link" href="#contato">Sobre a curadoria <span aria-hidden="true">↗</span></a>
         </nav>
     </header>
 
@@ -45,7 +45,7 @@
 
             {% if featured %}
                 <a class="featured-panel" href="{{ url_for('book_detail', slug=featured.slug) }}" aria-label="Conheça {{ featured.title }}, livro em destaque">
-                    <div class="featured-topline"><span>UM LIVRO PARA DESCOBRIR</span><span class="featured-index">01 / 01</span></div>
+                    <div class="featured-topline"><span>UM LIVRO PARA DESCOBRIR</span><span class="featured-index">ESCOLHA DO DIA</span></div>
                     <div class="featured-content">
                         <div class="featured-cover">
                             {% if featured.cover %}
@@ -80,10 +80,6 @@
                     <p class="eyebrow section-eyebrow">ESCOLHIDOS PARA VOCÊ</p>
                     <h2>A biblioteca<span class="heading-period">.</span></h2>
                 </div>
-                <div class="catalog-count">
-                    <span class="count-number">{{ books|length }}</span>
-                    <span>{{ 'livro encontrado' if books|length == 1 else 'livros encontrados' }}</span>
-                </div>
             </div>
 
             {% if catalog_error %}
@@ -109,9 +105,6 @@
                                         <span class="fallback-title">{{ book.title }}</span>
                                         <span class="fallback-author">{{ book.author }}</span>
                                     </div>
-                                {% endif %}
-                                {% if book.metadata_match %}
-                                    <span class="metadata-badge" title="Pesquisa bibliográfica: {{ book.research_status }}">METADADOS PESQUISADOS</span>
                                 {% endif %}
                                 <span class="book-arrow" aria-hidden="true">↗</span>
                             </div>
@@ -144,13 +137,29 @@
             {% endif %}
         </section>
 
-        <section class="about-strip" id="sobre">
+        <section class="contact-strip" id="contato">
             <span class="about-spark" aria-hidden="true">✳</span>
             <div>
                 <p class="eyebrow">M4 BOOKS</p>
-                <p>Um lugar para encontrar seu próximo livro favorito.</p>
+                <h2>Entre em contato</h2>
+                <p>Sugestões e conversas sobre livros são bem-vindas.</p>
             </div>
-            <a href="#catalogo">Voltar à biblioteca <span aria-hidden="true">↑</span></a>
+            <div class="contact-icons" aria-label="Opções de contato">
+                <a class="contact-icon" href="mailto:leazera2@gmail.com" aria-label="Enviar e-mail" title="Enviar e-mail">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="3.5" y="5.5" width="17" height="13" rx="2"></rect>
+                        <path d="m4.5 7 7.5 6 7.5-6"></path>
+                    </svg>
+                </a>
+                <a class="contact-icon" href="https://www.linkedin.com/in/leandro-batista01/" target="_blank" rel="noopener noreferrer" aria-label="Abrir perfil no LinkedIn" title="LinkedIn">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M5 9v10"></path>
+                        <path d="M5 5.5v.01"></path>
+                        <path d="M10 19v-6a4 4 0 0 1 8 0v6"></path>
+                        <path d="M10 10v9"></path>
+                    </svg>
+                </a>
+            </div>
         </section>
     </main>
 

@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -17,6 +18,13 @@ app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 
 catalog = DriveCatalog()
+FEATURED_TIMEZONE = timezone(timedelta(hours=-3))
+
+
+def _daily_featured(books: list[dict], current_date: date) -> dict | None:
+    if not books:
+        return None
+    return books[current_date.toordinal() % len(books)]
 
 
 @app.get("/")
@@ -51,7 +59,9 @@ def index():
             if book["genre"] and book["genre"] != "Gênero não encontrado"
         }
     )
-    featured = next((book for book in all_books if book["featured"]), None)
+    featured = _daily_featured(
+        all_books, datetime.now(FEATURED_TIMEZONE).date()
+    )
     return render_template(
         "index.html",
         books=books,

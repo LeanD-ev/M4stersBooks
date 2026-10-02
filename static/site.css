@@ -326,14 +326,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     letter-spacing: -.045em;
 }
 .heading-period { color: var(--orange); }
-.catalog-count {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    color: var(--muted);
-    font-size: .7rem;
-}
-.count-number { color: var(--ink); font: 500 1.5rem var(--serif); }
 .books-grid {
     max-width: 1320px;
     margin: 0 auto;
@@ -369,20 +361,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .book-card:nth-child(5n + 3) .cover-fallback { background: linear-gradient(145deg, #768296, #3b4d5c 75%); }
 .book-card:nth-child(5n + 4) .cover-fallback { background: linear-gradient(145deg, #b69b62, #776340 75%); }
 .book-card:nth-child(5n + 5) .cover-fallback { background: linear-gradient(145deg, #856783, #4e3c5b 75%); }
-.metadata-badge {
-    position: absolute;
-    left: 9px;
-    top: 9px;
-    padding: 6px 8px;
-    border: 1px solid rgba(255, 255, 255, .32);
-    border-radius: 20px;
-    background: rgba(37, 58, 45, .79);
-    color: #fffefa;
-    font-size: .48rem;
-    font-weight: 700;
-    letter-spacing: .08em;
-    backdrop-filter: blur(8px);
-}
 .book-arrow {
     width: 29px;
     height: 29px;
@@ -469,7 +447,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .empty-state p { margin: 0; color: var(--muted); font-size: .79rem; line-height: 1.6; }
 .text-link { display: inline-flex; gap: 12px; margin-top: 18px; color: var(--green); font-size: .76rem; font-weight: 700; }
 
-.about-strip {
+.contact-strip {
     width: min(100% - 72px, 1320px);
     min-height: 152px;
     margin: 0 auto;
@@ -479,10 +457,23 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     border-bottom: 1px solid var(--line);
 }
 .about-spark { color: var(--orange); font-size: 2rem; }
-.about-strip .eyebrow { color: var(--orange); font-size: .56rem; }
-.about-strip p:last-child { margin: 7px 0 0; font: 500 1.12rem var(--serif); }
-.about-strip > a { margin-left: auto; color: var(--muted); font-size: .68rem; font-weight: 600; }
-.about-strip > a span { padding-left: 7px; color: var(--orange); }
+.contact-strip .eyebrow { margin: 0; color: var(--orange); font-size: .56rem; }
+.contact-strip h2 { margin: 7px 0 0; font: 500 1.12rem var(--serif); }
+.contact-strip p:last-child { margin: 5px 0 0; color: var(--muted); font-size: .72rem; }
+.contact-icons { margin-left: auto; display: flex; gap: 11px; }
+.contact-icon {
+    width: 43px;
+    height: 43px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--green);
+    transition: transform .18s ease, border-color .18s ease, color .18s ease;
+}
+.contact-icon:hover { transform: translateY(-2px); border-color: var(--orange); color: var(--orange); }
+.contact-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .site-footer {
     width: min(100% - 72px, 1320px);
     min-height: 78px;
@@ -609,20 +600,20 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .books-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-    .site-header, .hero, .about-strip, .site-footer { width: min(100% - 40px, 600px); }
+    .site-header, .hero, .contact-strip, .site-footer { width: min(100% - 40px, 600px); }
     .site-header { height: 72px; }
     .header-nav { gap: 18px; }
     .header-nav a { font-size: .69rem; }
-    .header-nav .header-link { display: none; }
     .hero { padding: 50px 0 55px; grid-template-columns: 1fr; gap: 36px; }
     .hero h1 { font-size: clamp(3.3rem, 12vw, 5rem); }
     .featured-panel { min-height: 300px; }
     .featured-cover { width: clamp(118px, 28vw, 160px); }
     .catalog-section { padding: 54px 20px 66px; }
     .books-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px 15px; }
-    .about-strip { min-height: 130px; gap: 14px; }
-    .about-strip p:last-child { max-width: 250px; font-size: 1rem; }
-    .about-strip > a { max-width: 115px; text-align: right; line-height: 1.5; }
+    .contact-strip { min-height: 130px; gap: 14px; }
+    .contact-strip p:last-child { max-width: 250px; font-size: .68rem; }
+    .contact-icons { gap: 8px; }
+    .contact-icon { width: 39px; height: 39px; }
     .site-footer { min-height: 70px; flex-wrap: wrap; }
     .site-footer > span:nth-child(2) { display: none; }
     .book-page { width: min(100% - 40px, 600px); padding-top: 24px; }
@@ -632,7 +623,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .detail-content { padding-top: 0; }
 }
 @media (max-width: 480px) {
-    .site-header, .hero, .about-strip, .site-footer, .book-page { width: calc(100% - 32px); }
+    .site-header, .hero, .contact-strip, .site-footer, .book-page { width: calc(100% - 32px); }
     .brand-mark { width: 34px; height: 34px; }
     .brand-name { font-size: 1rem; }
     .header-nav { gap: 13px; }
@@ -650,15 +641,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     .featured-cta { margin-top: 17px; }
     .catalog-section { padding-inline: 16px; }
     .section-heading { align-items: end; }
-    .catalog-count { flex-direction: column; gap: 0; align-items: end; font-size: .58rem; }
     .books-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 13px; row-gap: 27px; }
     .book-info h3 { font-size: .92rem; }
-    .metadata-badge { left: 6px; top: 6px; padding: 5px 6px; font-size: .42rem; }
     .book-arrow { width: 26px; height: 26px; opacity: 1; transform: none; }
-    .about-strip { gap: 10px; }
+    .contact-strip { gap: 10px; }
     .about-spark { font-size: 1.5rem; }
-    .about-strip p:last-child { max-width: 205px; font-size: .88rem; }
-    .about-strip > a { max-width: 88px; font-size: .6rem; }
+    .contact-strip p:last-child { max-width: 175px; font-size: .64rem; }
+    .contact-icons { gap: 6px; }
+    .contact-icon { width: 35px; height: 35px; }
     .site-footer { font-size: .56rem; }
     .detail-content h1 { font-size: 2.55rem; }
     .metadata-list > div { grid-template-columns: 95px 1fr; }

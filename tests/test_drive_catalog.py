@@ -3,11 +3,13 @@ import tempfile
 import threading
 import urllib.error
 import unittest
+from datetime import date
+
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
-from app import app
+from app import _daily_featured, app
 from drive_catalog import (
     CatalogError,
     DriveCatalog,
@@ -20,6 +22,68 @@ from drive_catalog import (
 
 
 class DriveCatalogTests(unittest.TestCase):
+    def test_daily_featured_advances_with_each_calendar_day(self):
+        books = [{"title": f"Livro {index}"} for index in range(3)]
+
+        first_day = _daily_featured(books, date(2026, 10, 2))
+        next_day = _daily_featured(books, date(2026, 10, 3))
+        after_full_cycle = _daily_featured(books, date(2026, 10, 5))
+
+        self.assertIsNot(first_day, next_day)
+        self.assertIs(first_day, after_full_cycle)
+        self.assertIsNone(_daily_featured([], date(2026, 10, 2)))
+
+    def test_home_hides_requested_labels_and_shows_icon_only_contact_links(self):
+        books = [
+            {
+                "slug": f"livro-{index}",
+                "title": f"Livro {index}",
+                "author": f"Autor {index}",
+                "genre": "Fantasia",
+                "cover": None,
+                "metadata_match": True,
+                "featured": index == 0,
+            }
+            for index in range(3)
+        ]
+
+        class CatalogStub:
+            def get_books_background(self):
+                return books
+
+            @property
+            def sync_state(self):
+                return "ready"
+
+            @property
+            def last_error(self):
+                return None
+
+            @property
+            def warning(self):
+                return None
+
+        with patch("app.catalog", CatalogStub()):
+            response = app.test_client().get("/")
+
+        self.assertEqual(200, response.status_code)
+        self.assertIn(b'href="#contato">Sobre a curadoria', response.data)
+        self.assertIn(b'href="mailto:leazera2@gmail.com"', response.data)
+        self.assertIn(
+            b'href="https://www.linkedin.com/in/leandro-batista01/"',
+            response.data,
+        )
+        self.assertIn(b'aria-label="Enviar e-mail"', response.data)
+        self.assertIn(b'aria-label="Abrir perfil no LinkedIn"', response.data)
+        self.assertNotIn(b"METADADOS PESQUISADOS", response.data)
+        self.assertNotIn(b"catalog-count", response.data)
+        self.assertNotIn(b"livros encontrados", response.data)
+        self.assertNotIn(b">leazera2@gmail.com<", response.data)
+        self.assertNotIn(
+            b">https://www.linkedin.com/in/leandro-batista01/<",
+            response.data,
+        )
+
     def test_background_catalog_loading_does_not_block_page_request(self):
         catalog = DriveCatalog(api_key="test-key")
         sync_started = threading.Event()

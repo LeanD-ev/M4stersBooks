@@ -38,6 +38,10 @@ python -m flask --app app run --host 127.0.0.1 --port 5000
 
 A página inicial fica em `http://127.0.0.1:5000/`.
 
+## Interface
+
+A recomendação “Um livro para descobrir” avança uma posição no catálogo por dia, usando o calendário de São Paulo. A navegação “Sobre a curadoria” leva à seção de contato, que apresenta somente ícones acessíveis para e-mail e LinkedIn. Os cartões da biblioteca não mostram o selo de metadados pesquisados nem a contagem de resultados.
+
 ## Preparação para hospedagem
 
 O `Procfile` inicia o Flask com Waitress, servidor WSGI de produção que funciona em Windows e Linux. Serviços que aceitam Procfile podem usar o comando `web` automaticamente; em outros serviços, configure o comando de inicialização como `waitress-serve --listen=0.0.0.0:$PORT app:app`. O serviço precisa fornecer a variável `PORT`.
