@@ -78,6 +78,7 @@ class DriveCatalogTests(unittest.TestCase):
         )
         self.assertIn(b'aria-label="Enviar e-mail"', response.data)
         self.assertIn(b'aria-label="Abrir perfil no LinkedIn"', response.data)
+        self.assertIn(b'src="/static/m4-books-logo.png"', response.data)
         self.assertNotIn(b"METADADOS PESQUISADOS", response.data)
         self.assertNotIn(b"catalog-count", response.data)
         self.assertNotIn(b"livros encontrados", response.data)
@@ -88,6 +89,16 @@ class DriveCatalogTests(unittest.TestCase):
             b">https://www.linkedin.com/in/leandro-batista01/<",
             response.data,
         )
+
+    def test_brand_logo_is_served_from_static_assets(self):
+        response = app.test_client().get("/static/m4-books-logo.png")
+
+        try:
+            self.assertEqual(200, response.status_code)
+            self.assertEqual("image/png", response.mimetype)
+            self.assertGreater(len(response.data), 0)
+        finally:
+            response.close()
 
     def test_background_catalog_loading_does_not_block_page_request(self):
         catalog = DriveCatalog(api_key="test-key")
@@ -322,26 +333,51 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertEqual("https://books.example/cover.jpg", metadata["cover"])
         self.assertEqual("https://books.google.com/books?id=example", metadata["metadata_source"])
 
-    def test_lookup_uses_google_books_before_open_library(self):
+    def test_lookup_queries_both_sources_and_keeps_google_books_as_primary(self):
         catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
-        google_books = {"title": "A Espiã", "metadata_match": True}
+        google_books = {
+            "title": "A Espiã",
+            "metadata_source": "https://books.google.com/books?id=example",
+            "metadata_match": True,
+        }
+        open_library = {
+            "title": "A Espiã",
+            "metadata_source": "https://openlibrary.org/works/OL123W",
+            "metadata_match": True,
+        }
         with (
             patch.object(
                 catalog, "_search_google_books", return_value=google_books
             ) as google_search,
-            patch.object(catalog, "_search_open_library") as open_library_search,
+            patch.object(
+                catalog, "_search_open_library", return_value=open_library
+            ) as open_library_search,
         ):
             result = catalog._lookup_metadata("A Espiã - Tess Gerritsen.epub")
 
-        self.assertEqual(google_books, result)
+        self.assertEqual("A Espiã", result["title"])
+        self.assertEqual(
+            [
+                "https://books.google.com/books?id=example",
+                "https://openlibrary.org/works/OL123W",
+            ],
+            result["metadata_sources"],
+        )
+        self.assertEqual("https://books.google.com/books?id=example", result["metadata_source"])
         google_search.assert_called_once_with(
             "A Espiã", "Tess Gerritsen", None
         )
-        open_library_search.assert_not_called()
+        open_library_search.assert_called_once_with(
+            "A Espiã", "Tess Gerritsen", None
+        )
 
-    def test_lookup_uses_open_library_when_google_books_has_no_match(self):
+    def test_lookup_uses_open_library_when_google_books_is_unavailable(self):
         catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
-        open_library = {"title": "A Espiã", "metadata_match": True}
+        open_library = {
+            "title": "A Espiã",
+            "metadata_source": "https://openlibrary.org/works/OL123W",
+            "metadata_match": True,
+        }
         with (
             patch.object(catalog, "_search_google_books", return_value=None),
             patch.object(
@@ -353,6 +389,62 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertEqual(open_library, result)
         open_library_search.assert_called_once_with(
             "A Espiã", "Tess Gerritsen", None
+        )
+
+    def test_open_library_fills_fields_missing_from_google_books(self):
+        catalog = DriveCatalog(api_key="test-key", metadata_interval=0)
+        google_books = {
+            "title": "A Espiã",
+            "author": "Autor não encontrado",
+            "description": "Descrição não encontrada nas fontes consultadas.",
+            "publisher": "Editora Exemplo",
+            "year": "2014",
+            "genre": "Gênero não encontrado",
+            "cover": None,
+            "isbn": "",
+            "language": "pt",
+            "metadata_source": "https://books.google.com/books?id=example",
+            "metadata_match": True,
+        }
+        open_library = {
+            "title": "A Espiã (edição diferente)",
+            "author": "Tess Gerritsen",
+            "description": "Descrição da Open Library.",
+            "publisher": "Outra Editora",
+            "year": "2013",
+            "genre": "Mistério",
+            "cover": "https://covers.openlibrary.org/b/id/123-M.jpg",
+            "isbn": "9781234567890",
+            "language": "por",
+            "metadata_source": "https://openlibrary.org/works/OL123W",
+            "metadata_match": True,
+        }
+        with (
+            patch.object(
+                catalog, "_search_google_books", return_value=google_books
+            ),
+            patch.object(
+                catalog, "_search_open_library", return_value=open_library
+            ),
+        ):
+            result = catalog._lookup_metadata("A Espiã - Tess Gerritsen.epub")
+
+        self.assertEqual("A Espiã", result["title"])
+        self.assertEqual("Tess Gerritsen", result["author"])
+        self.assertEqual("Editora Exemplo", result["publisher"])
+        self.assertEqual("2014", result["year"])
+        self.assertEqual("Mistério", result["genre"])
+        self.assertEqual("9781234567890", result["isbn"])
+        self.assertEqual("https://covers.openlibrary.org/b/id/123-M.jpg", result["cover"])
+        self.assertEqual(
+            [
+                "https://books.google.com/books?id=example",
+                "https://openlibrary.org/works/OL123W",
+            ],
+            result["metadata_sources"],
+        )
+        self.assertEqual(
+            "https://books.google.com/books?id=example", result["metadata_source"]
         )
 
     def test_google_books_rate_limit_cools_down_requests(self):
@@ -406,7 +498,7 @@ class DriveCatalogTests(unittest.TestCase):
 
     def test_metadata_cache_uses_new_filename_and_author_key(self):
         self.assertEqual(
-            "v4:a espia|tess gerritsen",
+            "v6:a espia|tess gerritsen",
             _metadata_cache_key("A Espiã - Tess Gerritsen.epub"),
         )
 
@@ -492,6 +584,7 @@ class DriveCatalogTests(unittest.TestCase):
             )
 
         self.assertEqual(200, response.status_code)
+        self.assertIn(b'src="/static/m4-books-logo.png"', response.data)
         self.assertIn(b"9788501113832", response.data)
         self.assertIn(b"350", response.data)
         self.assertIn(b"https://books.google.com/cover.jpg", response.data)

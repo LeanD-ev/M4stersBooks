@@ -107,7 +107,7 @@ def _metadata_cache_key(filename: str) -> str:
     normalized = _normalize_title(title)
     if author:
         normalized = f"{normalized}|{_normalize_title(author)}"
-    return f"v4:{normalized}"
+    return f"v6:{normalized}"
 
 
 def _title_candidates(filename: str) -> list[str]:
@@ -496,9 +496,57 @@ class DriveCatalog:
         google_books_match = self._search_google_books(
             query, expected_author, isbn
         )
-        if google_books_match:
-            return google_books_match
-        return self._search_open_library(query, expected_author, isbn)
+        open_library_match = self._search_open_library(query, expected_author, isbn)
+        return self._merge_metadata_sources(
+            google_books_match,
+            open_library_match,
+        )
+
+    @staticmethod
+    def _merge_metadata_sources(
+        google_books: dict[str, Any] | None,
+        open_library: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if google_books is None:
+            return dict(open_library) if open_library else None
+        if open_library is None:
+            merged = dict(google_books)
+            source = google_books.get("metadata_source")
+            merged["metadata_sources"] = [source] if source else []
+            return merged
+
+        merged = dict(google_books)
+        fallback_values = {
+            "author": "Autor não encontrado",
+            "description": "Descrição não encontrada nas fontes consultadas.",
+            "publisher": "Editora não encontrada",
+            "year": "Ano não encontrado",
+            "genre": "Gênero não encontrado",
+            "cover": None,
+            "isbn": "",
+            "language": "Idioma não encontrado",
+            "pages": None,
+        }
+        for field, empty_value in fallback_values.items():
+            if merged.get(field) in (None, "", empty_value):
+                fallback_value = open_library.get(field)
+                if fallback_value not in (None, "", empty_value):
+                    merged[field] = fallback_value
+
+        sources = [
+            source
+            for source in (
+                google_books.get("metadata_source"),
+                open_library.get("metadata_source"),
+            )
+            if source
+        ]
+        merged["metadata_sources"] = list(dict.fromkeys(sources))
+        merged["metadata_source"] = (
+            google_books.get("metadata_source")
+            or open_library.get("metadata_source")
+        )
+        return merged
 
     def _wait_for_metadata_slot(self) -> None:
         elapsed = time.monotonic() - self._last_metadata_request
@@ -732,6 +780,7 @@ class DriveCatalog:
             "isbn": isbns[0] if isbns else "",
             "language": ", ".join(languages[:3]) or "Idioma não encontrado",
             "metadata_source": source,
+            "metadata_sources": [source],
             "metadata_match": True,
         }
         if pages:

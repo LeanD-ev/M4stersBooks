@@ -1,6 +1,6 @@
 # M4 Books
 
-Catálogo Flask alimentado pelos nomes de arquivos `.epub` em uma pasta pública do Google Drive. O site lê somente a listagem da pasta; não baixa nem abre o conteúdo dos EPUBs para montar o catálogo. Para buscar os metadados, consulta Google Books primeiro e usa Open Library como alternativa quando não encontra uma correspondência confiável. O catálogo não depende de CSVs ou imagens de capa locais.
+Catálogo Flask alimentado pelos nomes de arquivos `.epub` em uma pasta pública do Google Drive. O site lê somente a listagem da pasta; não baixa nem abre o conteúdo dos EPUBs para montar o catálogo. Para buscar metadados, consulta Google Books e Open Library para cada título e combina as informações correspondentes: prioriza os dados do Google Books e usa Open Library para preencher campos ausentes. O catálogo não depende de CSVs ou imagens de capa locais.
 
 ## Configurar o Google Drive
 
@@ -49,7 +49,7 @@ Para remover a tarefa, execute `.\scripts\register_drive_sync_task.ps1 -Unregist
 
 ## Metadados bibliográficos
 
-O título e, quando possível, o autor são inferidos do nome do EPUB no Drive; números de coleção e observações entre parênteses são removidos da busca. Se o nome incluir ISBN, ele é priorizado na pesquisa. Google Books é consultado primeiro; quando não há correspondência confiável, Open Library é consultado como reserva. A ficha usa título, autores, categorias, ano, editora, idioma, ISBN, sinopse, contagem de páginas, capa remota e link da fonte, conforme disponíveis no registro encontrado.
+O título e, quando possível, o autor são inferidos do nome do EPUB no Drive; números de coleção e observações entre parênteses são removidos da busca. Se o nome incluir ISBN, ele é priorizado na pesquisa. Google Books e Open Library são consultados; os dados do Google Books têm prioridade e Open Library completa campos ausentes quando há correspondência confiável. A ficha usa título, autores, categorias, ano, editora, idioma, ISBN, sinopse, contagem de páginas, capa remota e links das fontes, conforme disponíveis nos registros encontrados.
 
 Os metadados bibliográficos e as capas podem corresponder a outra edição ou faltar na API; confira os dados e a fonte antes de tratá-los como correspondência exata do EPUB. Não são consultados nem enviados o conteúdo dos livros.
 

@@ -12,8 +12,13 @@
 <body>
     <header class="site-header">
         <a class="brand" href="{{ url_for('index') }}" aria-label="M4 Books, início">
-            <span class="brand-mark">M4</span>
-            <span class="brand-name">M4 <span>Books</span></span>
+            <img
+                class="brand-logo"
+                src="{{ url_for('static', filename='m4-books-logo.png') }}"
+                alt=""
+                width="58"
+                height="58"
+            >
         </a>
         <nav class="header-nav" aria-label="Navegação principal">
             <a href="{{ url_for('index') }}">Biblioteca</a>
