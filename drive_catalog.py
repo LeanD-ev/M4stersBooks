@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -110,6 +111,33 @@ def _metadata_cache_key(filename: str) -> str:
     return f"v6:{normalized}"
 
 
+def _load_local_covers() -> dict[str, str]:
+    project_root = Path(__file__).resolve().parent
+    catalog_path = project_root / "data" / "catalogo_metadados.csv"
+    covers_directory = project_root / "static" / "capas"
+    covers: dict[str, str] = {}
+
+    try:
+        with catalog_path.open(encoding="utf-8-sig", newline="") as catalog_file:
+            for row in csv.DictReader(catalog_file):
+                title = row.get("titulo_site", "").strip()
+                cover_path = PurePosixPath(
+                    row.get("arquivo_capa", "").replace("\\", "/")
+                )
+                if (
+                    not title
+                    or len(cover_path.parts) != 2
+                    or cover_path.parts[0] != "capas"
+                    or not (covers_directory / cover_path.name).is_file()
+                ):
+                    continue
+                covers[_normalize_title(title)] = f"/static/capas/{cover_path.name}"
+    except FileNotFoundError:
+        return {}
+
+    return covers
+
+
 def _title_candidates(filename: str) -> list[str]:
     title, _ = _filename_parts(filename)
     return [title]
@@ -211,6 +239,7 @@ class DriveCatalog:
         self._books: list[dict[str, Any]] = []
         self._books_by_slug: dict[str, dict[str, Any]] = {}
         self._metadata_cache = self._load_metadata_cache()
+        self._local_covers = _load_local_covers()
         self.warning: str | None = None
 
     def get_books(self) -> list[dict[str, Any]]:
@@ -321,6 +350,10 @@ class DriveCatalog:
             _book_metadata(entry.get("name", ""), entry["id"])
             for entry in entries
         ]
+        for book in books:
+            book["cover"] = self._local_covers.get(
+                _normalize_title(book["title"])
+            )
         for index, book in enumerate(books):
             book["featured"] = index == 0
 
@@ -345,6 +378,12 @@ class DriveCatalog:
                 book["download_url"] = self._drive_download_url(entry["id"])
             else:
                 unmatched += 1
+            if not book.get("cover"):
+                book["cover"] = self._local_covers.get(
+                    _normalize_title(book["title"])
+                ) or self._local_covers.get(
+                    _normalize_title(_filename_title(entry.get("name", "")))
+                )
             with self._lock:
                 current = self._books_by_slug.get(book["slug"])
                 if current is not None:

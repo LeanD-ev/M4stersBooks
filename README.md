@@ -49,7 +49,7 @@ Para remover a tarefa, execute `.\scripts\register_drive_sync_task.ps1 -Unregist
 
 ## Metadados bibliográficos
 
-O título e, quando possível, o autor são inferidos do nome do EPUB no Drive; números de coleção e observações entre parênteses são removidos da busca. Se o nome incluir ISBN, ele é priorizado na pesquisa. Google Books e Open Library são consultados; os dados do Google Books têm prioridade e Open Library completa campos ausentes quando há correspondência confiável. A ficha usa título, autores, categorias, ano, editora, idioma, ISBN, sinopse, contagem de páginas, capa remota e links das fontes, conforme disponíveis nos registros encontrados.
+O título e, quando possível, o autor são inferidos do nome do EPUB no Drive; números de coleção e observações entre parênteses são removidos da busca. Se o nome incluir ISBN, ele é priorizado na pesquisa. Google Books e Open Library são consultados; os dados do Google Books têm prioridade e Open Library completa campos ausentes quando há correspondência confiável. A ficha usa título, autores, categorias, ano, editora, idioma, ISBN, sinopse, contagem de páginas, capa remota e links das fontes, conforme disponíveis nos registros encontrados. Se as fontes não fornecerem uma capa, o catálogo usa uma imagem local já incluída em `static/capas`, quando houver correspondência de título; esse recurso de reserva não altera os demais metadados.
 
 Os metadados bibliográficos e as capas podem corresponder a outra edição ou faltar na API; confira os dados e a fonte antes de tratá-los como correspondência exata do EPUB. Não são consultados nem enviados o conteúdo dos livros.
 

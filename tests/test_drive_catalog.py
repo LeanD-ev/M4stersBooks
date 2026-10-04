@@ -290,6 +290,72 @@ class DriveCatalogTests(unittest.TestCase):
         self.assertIn("/b/id/456-M.jpg", metadata["cover"])
         self.assertEqual("https://openlibrary.org/works/OL123W", metadata["metadata_source"])
 
+    def test_local_cover_is_used_when_online_metadata_has_no_cover(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = DriveCatalog(
+                api_key="test-key",
+                metadata_interval=0,
+                metadata_cache_path=Path(directory) / "metadata.json",
+            )
+            with (
+                patch.object(
+                    catalog,
+                    "_list_epub_files",
+                    return_value=[
+                        {"name": "The Breakdown.epub", "id": "file-id"}
+                    ],
+                ),
+                patch.object(
+                    catalog,
+                    "_lookup_metadata",
+                    return_value={
+                        "title": "A Beira da Loucura",
+                        "cover": None,
+                        "metadata_match": True,
+                    },
+                ),
+            ):
+                catalog._sync()
+
+            cover = catalog._books[0]["cover"]
+            self.assertEqual("/static/capas/9788501113832.jpg", cover)
+            response = app.test_client().get(cover)
+            response.close()
+
+        self.assertEqual(200, response.status_code)
+        self.assertTrue(response.mimetype.startswith("image/"))
+
+    def test_online_cover_takes_precedence_over_local_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = DriveCatalog(
+                api_key="test-key",
+                metadata_interval=0,
+                metadata_cache_path=Path(directory) / "metadata.json",
+            )
+            with (
+                patch.object(
+                    catalog,
+                    "_list_epub_files",
+                    return_value=[
+                        {"name": "A Beira da Loucura.epub", "id": "file-id"}
+                    ],
+                ),
+                patch.object(
+                    catalog,
+                    "_lookup_metadata",
+                    return_value={
+                        "cover": "https://books.google.com/online-cover.jpg",
+                        "metadata_match": True,
+                    },
+                ),
+            ):
+                catalog._sync()
+
+        self.assertEqual(
+            "https://books.google.com/online-cover.jpg",
+            catalog._books[0]["cover"],
+        )
+
     def test_google_books_fallback_maps_metadata_after_title_author_match(self):
         response = {
             "items": [
