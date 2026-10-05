@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-DEFAULT_FOLDER_ID = "1IctnXWMu5IWqfFHjo9a_cyWvdFSBDfGP"
+DEFAULT_FOLDER_ID = "1BTQUTlxf_G_L4fn_aGdZP4qk9DqfLl2G"
 DRIVE_API_URL = "https://www.googleapis.com/drive/v3"
 OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
